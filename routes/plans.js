@@ -6,9 +6,7 @@ var redis = new Redis()
 
 router.post('/addplan', function (req, res, next) {
   try {
-    const result=jsonschemavalidation(req.body)
-    //console.log(result)
-    console.log(req.body["creationDate"])
+    const result = jsonschemavalidation(req.body)
     if (result === true) {
       redis.set(req.body['objectId'], JSON.stringify(req.body))
       res.status(200)
@@ -19,7 +17,7 @@ router.post('/addplan', function (req, res, next) {
       res.status(400)
       res.send({ error: 'Data is not in correct format' })
     }
-  } catch(Exception) {
+  } catch (Exception) {
     console.log(Exception)
     res.status(500)
     res.send({ error: 'Some internal server error' })
@@ -60,6 +58,34 @@ router.delete('/deleteplan/:id', function (req, res, next) {
             res.send({ message: 'Data Deleted Successfully' })
           }
         })
+      }
+    }
+  })
+})
+router.put('/updateplan/:id', function (req, res, next) {
+  redis.get(req.params.id, (err, result) => {
+    if (err) {
+      res.status(500)
+      res.send({ error: 'Some internal server error' })
+    } else {
+      if (result === null) {
+        res.status(404)
+        res.send({ message: 'Data not found' })
+      } else {
+        var jsondatatovalidate=req.body
+        jsondatatovalidate['objectId']=req.params.id
+        console.log(jsondatatovalidate)
+        const result = jsonschemavalidation(jsondatatovalidate)
+        if (result === true) {
+          redis.set(req.params.id, JSON.stringify(jsondatatovalidate))
+          res.status(200)
+          res.send({
+            message: 'Data updated successfully successfully for id: ' + req.params.id
+          })
+        } else {
+          res.status(400)
+          res.send({ error: 'Data is not in correct format' })
+        }
       }
     }
   })

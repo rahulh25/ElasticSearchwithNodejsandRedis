@@ -56,7 +56,6 @@ const JsonSchemaValidation = jsondata => {
   v.addSchema(membercostshare, '/MemberCostShare')
   v.addSchema(linkedService, '/LinkedService')
   var results = v.validate(jsondata, plan)
-  console.log(results)
   if (results.errors.length === 0) {
     return true
   }
