@@ -11,7 +11,7 @@ const JsonSchemaValidation = jsondata => {
       deductible: { type: 'integer', minimum: 0 },
       objectId: { type: 'string' }
     },
-    required: ['copay', 'deductible','objectId','_org'],
+    required: ['copay', 'deductible', 'objectId', '_org'],
     additionalProperties: false
   }
   const linkedService = {
@@ -22,7 +22,7 @@ const JsonSchemaValidation = jsondata => {
       objectId: { type: 'string' },
       name: { type: 'string' }
     },
-    required: ['name','objectId','_org'],
+    required: ['name', 'objectId', '_org'],
     additionalProperties: false
   }
   var plan = {
@@ -46,11 +46,23 @@ const JsonSchemaValidation = jsondata => {
             _org: { type: 'string' },
             objectId: { type: 'string' }
           },
-          required:['_org','linkedService','planserviceCostShares','objectId']
+          required: [
+            '_org',
+            'linkedService',
+            'planserviceCostShares',
+            'objectId'
+          ]
         }
       }
     },
-    required: ['planType','objectId','_org','creationDate','planCostShares','linkedPlanServices'],
+    required: [
+      'planType',
+      'objectId',
+      '_org',
+      'creationDate',
+      'planCostShares',
+      'linkedPlanServices'
+    ],
     additionalProperties: false
   }
   v.addSchema(membercostshare, '/MemberCostShare')
