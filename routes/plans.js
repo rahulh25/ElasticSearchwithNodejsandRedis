@@ -4,6 +4,7 @@ var jsonschemavalidation = require('../schemavalidation/jsonschemavalidation')
 var Redis = require('ioredis')
 var redis = new Redis()
 
+var jsonmergepatch = require('json-merge-patch')
 router.post('/', function (req, res, next) {
   try {
     const result = jsonschemavalidation(req.body)
@@ -18,7 +19,6 @@ router.post('/', function (req, res, next) {
       res.send({ error: 'Data is not in correct format' })
     }
   } catch (Exception) {
-    console.log(Exception)
     res.status(500)
     res.send({ error: 'Some internal server error' })
   }
@@ -74,7 +74,6 @@ router.put('/:id', function (req, res, next) {
       } else {
         var jsondatatovalidate = req.body
         jsondatatovalidate['objectId'] = req.params.id
-        console.log(jsondatatovalidate)
         const result = jsonschemavalidation(jsondatatovalidate)
         if (result === true) {
           redis.set(req.params.id, JSON.stringify(jsondatatovalidate))
@@ -101,13 +100,32 @@ router.patch('/:id', function (req, res, next) {
         res.status(404)
         res.send({ message: 'Data not found' })
       } else {
-        var jsonData = req.body
-        redis.set(req.params.id, JSON.stringify(jsonData))
-        res.status(200)
-        res.send({
-          message:
-            'Data updated successfully successfully for id: ' + req.params.id
-        })
+        try {
+          var jsonData = req.body
+          var jsonToMatch = JSON.parse(result)
+          var patch = jsonmergepatch.generate(jsonToMatch, jsonData)
+          for (key in patch) {
+            if (patch[key] === null) {
+              patch[key] = jsonToMatch[key]
+            }
+          }
+          const result = jsonschemavalidation(patch)
+          if (result === true) {
+            redis.set(req.params.id, JSON.stringify(patch))
+            res.status(200)
+            res.send({
+              message:
+                'Data updated successfully successfully for id: ' +
+                req.params.id
+            })
+          } else {
+            res.status(400)
+            res.send({ error: 'Data is not in correct format' })
+          }
+        } catch (Exception) {
+          res.status(500)
+          res.send({ error: 'Some internal server error' })
+        }
       }
     }
   })
