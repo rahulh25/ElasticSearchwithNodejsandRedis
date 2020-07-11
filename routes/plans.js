@@ -109,8 +109,8 @@ router.patch('/:id', function (req, res, next) {
               patch[key] = jsonToMatch[key]
             }
           }
-          const result = jsonschemavalidation(patch)
-          if (result === true) {
+          const jsonResult = jsonschemavalidation(patch)
+          if (jsonResult === true) {
             redis.set(req.params.id, JSON.stringify(patch))
             res.status(200)
             res.send({
@@ -122,7 +122,8 @@ router.patch('/:id', function (req, res, next) {
             res.status(400)
             res.send({ error: 'Data is not in correct format' })
           }
-        } catch (Exception) {
+        } catch (error) {
+          console.log(error)
           res.status(500)
           res.send({ error: 'Some internal server error' })
         }

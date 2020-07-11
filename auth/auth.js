@@ -8,16 +8,23 @@ const oktaJwtVerifier = new OktaJwtVerifier({
 module.exports = async (req, res, next) => {
   try {
     const { authorization } = req.headers
-    if (!authorization) throw new Error('You must send an Authorization header')
-
+    if (!authorization) {
+      res.status(401)
+      res.send({ message: 'User not authenticated' })
+    }
     const [authType, token] = authorization.trim().split(' ')
-    if (authType !== 'Bearer') throw new Error('Expected a Bearer token')
+    if (authType !== 'Bearer') {
+      res.status(401)
+      res.send({ message: 'User not authenticated' })
+    }
     const { claims } = await oktaJwtVerifier.verifyAccessToken(token)
     if (!claims.scp.includes(process.env.SCOPE)) {
-      throw new Error('Could not verify the proper scope')
+      res.status(403)
+      res.send({ message: 'User not authorized' })
     }
     next()
   } catch (error) {
-    next(error.message)
+    res.status(401)
+    res.send({ message: 'Token expired. Login again' })
   }
 }
