@@ -7,6 +7,9 @@ var addtoqueue = require('../kafka-elasticsearch/service')
 var consumer = require('../kafka-elasticsearch/consumer')
 const client = require('../elasticsearch/connection')
 const search = require('../elasticsearch/search')
+var Redis = require('ioredis')
+const { response } = require('express')
+var redis = new Redis()
 
 //POST Method
 router.post('/', function (req, res, next) {
@@ -16,6 +19,7 @@ router.post('/', function (req, res, next) {
 
     //If Validation Successfull
     if (result === true) {
+      redis.set(req.body['objectId'], JSON.stringify(req.body))
       //Create the Member Cost Share Data for ElasticSearch (planCostShares in the json data)
       const membercostshare = indexing.createMembercostShare(
         req.body['planCostShares'],
@@ -108,9 +112,6 @@ router.post('/', function (req, res, next) {
       //Function to add data to elasticsearch from kafka queue
       consumer.consumetopic()
 
-      //Remove the topic once consumed(Doesn't work for now)
-      consumer.removeTopic()
-
       //Send the response
       res.status(200)
       res.send({ msg: 'Data Added Successfully' })
@@ -128,111 +129,126 @@ router.post('/', function (req, res, next) {
 
 //PUT METHOD
 router.put('/:id', function (req, res, next) {
-  //Search for the id in elascticsearch
-  client.search(
-    {
-      index: 'plan',
-      body: {
-        query: {
-          match: { 'objectId.keyword': req.params.id }
-        }
-      }
-    },
-    (err, result) => {
-      if (err) {
-        res.status(500)
-        res.send({ error: 'Some internal server error' })
-      }
-
-      //No result found
-      if (result.hits.total['value'] === 0) {
+  redis.get(req.params.id, (err, result) => {
+    if (err) {
+      res.status(500)
+      res.send({ error: 'Some internal server error' })
+    } else {
+      if (result === null) {
         res.status(404)
         res.send({ message: 'Data not found' })
       } else {
-        //Validate data
-        var jsondatatovalidate = req.body
-        jsondatatovalidate['objectId'] = req.params.id
-        const result = jsonschemavalidation(jsondatatovalidate)
-        if (result === true) {
-          //Same process as POST Method
-          const membercostshare = indexing.createMembercostShare(
-            jsondatatovalidate['planCostShares'],
-            jsondatatovalidate['objectId']
-          )
-          const planbody = {
-            _org: jsondatatovalidate['_org'],
-            objectId: jsondatatovalidate['objectId'],
-            objectType: jsondatatovalidate['objectType'],
-            planType: jsondatatovalidate['planType'],
-            creationDate: jsondatatovalidate['creationDate'],
-            plan_service: {
-              name: 'plan'
-            }
-          }
-          var routing = jsondatatovalidate['objectId']
-          var planpayload = {
-            id: jsondatatovalidate['objectId'],
+        //Search for the id in elascticsearch
+        client.search(
+          {
             index: 'plan',
-            body: planbody
-          }
-          var membercostsharepayload = {
-            id: jsondatatovalidate['planCostShares']['objectId'],
-            index: 'plan',
-            body: membercostshare,
-            routing: routing
-          }
-          addtoqueue.addtoqueue(JSON.stringify(planpayload))
-          addtoqueue.addtoqueue(JSON.stringify(membercostsharepayload))
-          for (key in jsondatatovalidate['linkedPlanServices']) {
-            var planService = indexing.createPlanService(
-              jsondatatovalidate['linkedPlanServices'][key],
-              jsondatatovalidate['linkedPlanServices'][key]['objectId']
-            )
-            var body = {
-              objectId: planService['objectId'],
-              _org: planService['_org'],
-              objectType: planService['objectType'],
-              plan_service: {
-                name: 'planservice',
-                parent: jsondatatovalidate['objectId']
+            body: {
+              query: {
+                match: { 'objectId.keyword': req.params.id }
               }
             }
-            var planservicepayload = {
-              id: planService['objectId'],
-              index: 'plan',
-              body: body,
-              routing: routing
+          },
+          (err, result) => {
+            if (err) {
+              res.status(500)
+              res.send({ error: 'Some internal server error' })
             }
-            var planServiceCostSharepayload = {
-              id: planService['planserviceCostShares']['objectId'],
-              index: 'plan',
-              body: planService['planserviceCostShares'],
-              routing: planService['objectId']
+
+            //No result found
+            if (result.hits.total['value'] === 0) {
+              res.status(404)
+              res.send({ message: 'Data not found' })
+            } else {
+              //Validate data
+              var jsondatatovalidate = req.body
+              jsondatatovalidate['objectId'] = req.params.id
+              const result = jsonschemavalidation(jsondatatovalidate)
+              if (result === true) {
+                redis.set(req.params.id, JSON.stringify(jsondatatovalidate))
+                //Same process as POST Method
+                const membercostshare = indexing.createMembercostShare(
+                  jsondatatovalidate['planCostShares'],
+                  jsondatatovalidate['objectId']
+                )
+                const planbody = {
+                  _org: jsondatatovalidate['_org'],
+                  objectId: jsondatatovalidate['objectId'],
+                  objectType: jsondatatovalidate['objectType'],
+                  planType: jsondatatovalidate['planType'],
+                  creationDate: jsondatatovalidate['creationDate'],
+                  plan_service: {
+                    name: 'plan'
+                  }
+                }
+                var routing = jsondatatovalidate['objectId']
+                var planpayload = {
+                  id: jsondatatovalidate['objectId'],
+                  index: 'plan',
+                  body: planbody
+                }
+                var membercostsharepayload = {
+                  id: jsondatatovalidate['planCostShares']['objectId'],
+                  index: 'plan',
+                  body: membercostshare,
+                  routing: routing
+                }
+                addtoqueue.addtoqueue(JSON.stringify(planpayload))
+                addtoqueue.addtoqueue(JSON.stringify(membercostsharepayload))
+                for (key in jsondatatovalidate['linkedPlanServices']) {
+                  var planService = indexing.createPlanService(
+                    jsondatatovalidate['linkedPlanServices'][key],
+                    jsondatatovalidate['linkedPlanServices'][key]['objectId']
+                  )
+                  var body = {
+                    objectId: planService['objectId'],
+                    _org: planService['_org'],
+                    objectType: planService['objectType'],
+                    plan_service: {
+                      name: 'planservice',
+                      parent: jsondatatovalidate['objectId']
+                    }
+                  }
+                  var planservicepayload = {
+                    id: planService['objectId'],
+                    index: 'plan',
+                    body: body,
+                    routing: routing
+                  }
+                  var planServiceCostSharepayload = {
+                    id: planService['planserviceCostShares']['objectId'],
+                    index: 'plan',
+                    body: planService['planserviceCostShares'],
+                    routing: planService['objectId']
+                  }
+                  var linkedServicePayload = {
+                    id: planService['linkedService']['objectId'],
+                    index: 'plan',
+                    body: planService['linkedService'],
+                    routing: planService['objectId']
+                  }
+                  addtoqueue.addtoqueue(JSON.stringify(planservicepayload))
+                  addtoqueue.addtoqueue(JSON.stringify(linkedServicePayload))
+                  addtoqueue.addtoqueue(
+                    JSON.stringify(planServiceCostSharepayload)
+                  )
+                }
+                consumer.consumetopic()
+                res.status(200)
+                res.send({
+                  message:
+                    'Data updated successfully successfully for id: ' +
+                    req.params.id
+                })
+              } else {
+                res.status(400)
+                res.send({ error: 'Data is not in correct format' })
+              }
             }
-            var linkedServicePayload = {
-              id: planService['linkedService']['objectId'],
-              index: 'plan',
-              body: planService['linkedService'],
-              routing: planService['objectId']
-            }
-            addtoqueue.addtoqueue(JSON.stringify(planservicepayload))
-            addtoqueue.addtoqueue(JSON.stringify(linkedServicePayload))
-            addtoqueue.addtoqueue(JSON.stringify(planServiceCostSharepayload))
           }
-          consumer.consumetopic()
-          consumer.removeTopic()
-          res.status(200)
-          res.send({
-            message:
-              'Data updated successfully successfully for id: ' + req.params.id
-          })
-        } else {
-          res.status(400)
-          res.send({ error: 'Data is not in correct format' })
-        }
+        )
       }
     }
-  )
+  })
 })
 
 //PATCH METHOD
@@ -329,6 +345,7 @@ router.patch('/:id', function (req, res, next) {
                 //var jsonToMatch = JSON.parse(result)
                 //Merge the incoming patch json data with the original data
                 var patch = jsonmergepatch.generate(jsonData, mainjson)
+
                 for (key in patch) {
                   if (patch[key] === null) {
                     patch[key] = jsonData[key]
@@ -336,6 +353,7 @@ router.patch('/:id', function (req, res, next) {
                 }
                 const jsonResult = jsonschemavalidation(patch)
                 if (jsonResult === true) {
+                  redis.set(req.params.id, JSON.stringify(patch))
                   const membercostshare = indexing.createMembercostShare(
                     patch['planCostShares'],
                     patch['objectId']
@@ -403,7 +421,6 @@ router.patch('/:id', function (req, res, next) {
                     )
                   }
                   consumer.consumetopic()
-                  consumer.removeTopic()
                   res.status(200)
                   res.send({
                     message:
@@ -425,142 +442,55 @@ router.patch('/:id', function (req, res, next) {
 
 //DELETE METHOD
 router.delete('/:id', function (req, res, next) {
-  //Search for the data
-  client.search(
-    {
-      index: 'plan',
-      body: {
-        query: {
-          match: { 'objectId.keyword': req.params.id }
-        }
-      }
-    },
-    (err, result) => {
-      if (err) {
-        res.status(500)
-        res.send({ error: 'Some internal server error' })
-      }
-
-      //No RESULT
-      if (result.hits.total['value'] === 0) {
+  redis.get(req.params.id, (err, result) => {
+    if (err) {
+      res.status(500)
+      res.send({ error: 'Some internal server error' })
+    } else {
+      if (result === null) {
         res.status(404)
         res.send({ message: 'Data not found' })
       } else {
-        //DELETE the data
-        client.delete(
+        client.indices.delete(
           {
-            id: req.params.id,
             index: 'plan'
           },
           (err, result) => {
             if (err) {
               res.status(500)
-              res.send({ error: 'Some internal server error' })
+              res.send({ message: 'Internal Server error' })
             } else {
-              res.status(200)
-              res.send({ message: 'Data Deleted Successfully' })
+              redis.del(req.params.id, (err, result) => {
+                if (err) {
+                  res.status(500)
+                  res.send({ error: 'Internal Server error' })
+                } else {
+                  res.status(200)
+                  res.send({ msg: 'Deleted Successfully' })
+                }
+              })
             }
           }
         )
       }
     }
-  )
+  })
 })
 
-//GET ME
+//GET METHOD
 router.get('/:id', function (req, res, next) {
-  var query = {
-    index: 'plan',
-    body: {
-      query: {
-        match: { 'objectId.keyword': req.params.id }
-      }
-    }
-  }
-  client.search(query, (err, result) => {
+  redis.get(req.params.id, (err, result) => {
     if (err) {
       res.status(500)
       res.send({ error: 'Some internal server error' })
-    }
-
-    //No Result
-    if (result.hits.total['value'] === 0) {
-      res.status(404)
-      res.send({ message: 'Data not found' })
     } else {
-      var jsonData = ''
-      var membercostshareJson = ''
-      var arrofplanServiceID = []
-      var query = {
-        index: 'plan',
-        body: {
-          query: {
-            match: { 'objectId.keyword': req.params.id }
-          }
-        }
+      if (result === null) {
+        res.status(404)
+        res.send({ message: 'Data not found' })
+      } else {
+        res.status(200)
+        res.send(JSON.parse(result))
       }
-      var result = search.search(query)
-      result.then(result => {
-        jsonData = {
-          _org: result.hits.hits[0]._source['_org'],
-          objectId: result.hits.hits[0]._source['objectId'],
-          objectType: result.hits.hits[0]._source['objectType'],
-          planType: result.hits.hits[0]._source['planType'],
-          creationDate: result.hits.hits[0]._source['creationDate']
-        }
-        var id = result.hits.hits[0]._source['objectId']
-        var membercostshareQuery = {
-          index: 'plan',
-          body: {
-            query: {
-              parent_id: {
-                type: 'membercostshare',
-                id: id
-              }
-            }
-          }
-        }
-
-        var membercostshareresult = search.search(membercostshareQuery)
-        membercostshareresult.then(r => {
-          membercostshareJson = {
-            deductible: r.hits.hits[0]._source['deductible'],
-            _org: r.hits.hits[0]._source['_org'],
-            copay: r.hits.hits[0]._source['copay'],
-            objectId: r.hits.hits[0]._source['objectId'],
-            objectType: r.hits.hits[0]._source['objectType']
-          }
-          jsonData['planCostShares'] = membercostshareJson
-          var planservicequery = {
-            index: 'plan',
-            body: {
-              query: {
-                parent_id: {
-                  type: 'planservice',
-                  id: id
-                }
-              }
-            }
-          }
-          let PlanServiceQuery = search.search(planservicequery)
-          PlanServiceQuery.then(result => {
-            for (key in result.hits.hits) {
-              arrofplanServiceID.push({
-                objectId: result.hits.hits[key]._source['objectId'],
-                _org: result.hits.hits[key]._source['_org'],
-                objectType: result.hits.hits[key]._source['objectType']
-              })
-            }
-            let finalService = search.searchforinnerdata(arrofplanServiceID)
-            finalService.then(result => {
-              console.log(result)
-              jsonData['linkedPlanServices'] = result
-              res.status(200)
-              res.send(jsonData)
-            })
-          })
-        })
-      })
     }
   })
 })

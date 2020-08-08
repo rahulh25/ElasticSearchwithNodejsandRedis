@@ -6,7 +6,7 @@ const consumetopic = () => {
     Consumer = kafka.Consumer
     const client = new kafka.KafkaClient({ kafkaHost: 'localhost:9092' })
     client.remove
-    consumer = new Consumer(client, [{ topic: 'health', partition: 0 }], {
+    consumer = new Consumer(client, [{ topic: 'rahulfinal', partition: 0 }], {
       autoCommit: true
     })
     consumer.on('message', async function (message) {
@@ -22,16 +22,16 @@ const consumetopic = () => {
   }
 }
 
-const removeTopic = () => {
-  Consumer = kafka.Consumer
-  const client = new kafka.KafkaClient({ kafkaHost: 'localhost:9092' })
-  consumer = new Consumer(client, [{ topic: 'finalplan', partition: 0 }], {
-    autoCommit: false
-  })
-  consumer.removeTopics(['finalplan'], function (err, removed) {
-    console.log('I am here')
-    console.log(removed)
-  })
-}
+// const removeTopic = () => {
+//   Consumer = kafka.Consumer
+//   const client = new kafka.KafkaClient({ kafkaHost: 'localhost:9092' })
+//   consumer = new Consumer(client, [{ topic: 'finalfinal', partition: 0 }], {
+//     autoCommit: true
+//   })
+//   consumer.removeTopics(['finalfinal'], function (err, removed) {
+//     console.log('I am here')
+//     console.log(removed)
+//   })
+// }
 
-module.exports = { removeTopic, consumetopic }
+module.exports = { consumetopic }

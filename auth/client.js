@@ -10,7 +10,9 @@ if (!uri) {
 }
 
 const sendAPIRequest = async () => {
-  const token = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)
+  const token = btoa(
+    `${CLIENT_ID}:${CLIENT_SECRET}`
+  )
   try {
     const auth = await request({
       uri: `${ISSUER}/v1/token`,
