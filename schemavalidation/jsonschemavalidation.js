@@ -9,9 +9,10 @@ const JsonSchemaValidation = jsondata => {
       _org: { type: 'string' },
       copay: { type: 'integer', minimum: 0 },
       deductible: { type: 'integer', minimum: 0 },
-      objectId: { type: 'string' }
+      objectId: { type: 'string' },
+      objectType: { type: 'string' }
     },
-    required: ['copay', 'deductible', 'objectId', '_org'],
+    required: ['copay', 'deductible', 'objectId', '_org', 'objectType'],
     additionalProperties: false
   }
   const linkedService = {
@@ -20,9 +21,10 @@ const JsonSchemaValidation = jsondata => {
     properties: {
       _org: { type: 'string' },
       objectId: { type: 'string' },
-      name: { type: 'string' }
+      name: { type: 'string' },
+      objectType: { type: 'string' }
     },
-    required: ['name', 'objectId', '_org'],
+    required: ['name', 'objectId', '_org', 'objectType'],
     additionalProperties: false
   }
   var plan = {
@@ -31,6 +33,7 @@ const JsonSchemaValidation = jsondata => {
     properties: {
       _org: { type: 'string' },
       objectId: { type: 'string' },
+      objectType: { type: 'string' },
       planType: { type: 'string' },
       creationDate: {
         type: 'string',
@@ -44,13 +47,15 @@ const JsonSchemaValidation = jsondata => {
             linkedService: { $ref: '/LinkedService' },
             planserviceCostShares: { $ref: '/MemberCostShare' },
             _org: { type: 'string' },
-            objectId: { type: 'string' }
+            objectId: { type: 'string' },
+            objectType: { type: 'string' }
           },
           required: [
             '_org',
             'linkedService',
             'planserviceCostShares',
-            'objectId'
+            'objectId',
+            'objectType'
           ]
         }
       }

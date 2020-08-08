@@ -3,7 +3,6 @@ const request = require('request-promise')
 const btoa = require('btoa')
 
 const { ISSUER, CLIENT_ID, CLIENT_SECRET, SCOPE } = process.env
-
 const [, , uri, method, body] = process.argv
 if (!uri) {
   console.log('Usage: node client {url} [{method}] [{jsonData}]')
@@ -22,10 +21,10 @@ const sendAPIRequest = async () => {
       },
       form: {
         grant_type: 'client_credentials',
-        scope: SCOPE
+        scope: `${SCOPE}`
       }
     })
-    console.log(auth)
+    console.log(auth.access_token)
     const response = await request({
       uri,
       method,
@@ -34,10 +33,8 @@ const sendAPIRequest = async () => {
         authorization: `${auth.token_type} ${auth.access_token}`
       }
     })
-
-    console.log(response)
   } catch (error) {
-    console.log(`Error: ${error.message}`)
+    console.log(`Error: ${error}`)
   }
 }
 

@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "gettoken": "cd auth && node client.js http://localhost:3000"
   },
   "dependencies": {
     "@okta/jwt-verifier": "0.0.12",
@@ -12,12 +13,12 @@
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "dotenv": "^6.0.0",
+    "elasticsearch": "^16.7.1",
     "express": "^4.17.1",
-    "ioredis": "^4.17.3",
     "jade": "^1.11.0",
     "json-merge-patch": "^1.0.0",
     "jsonschema": "^1.2.6",
-    "morgan": "^1.10.0",
+    "kafka-node": "^5.0.0",
     "nodemon": "^2.0.2",
     "request": "^2.88.2",
     "request-promise": "^4.2.5"

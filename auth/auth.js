@@ -1,3 +1,4 @@
+require('dotenv').config()
 const OktaJwtVerifier = require('@okta/jwt-verifier')
 
 const oktaJwtVerifier = new OktaJwtVerifier({
